@@ -442,7 +442,12 @@
   gap: 0.6rem;
 }
 
-.table-list li {
+.table-item {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.table-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -451,6 +456,59 @@
   background: var(--surface-alt);
   border: 1px solid var(--line);
   font-size: 0.92rem;
+  width: 100%;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.table-row:hover {
+  border-color: rgba(208, 106, 69, 0.6);
+}
+
+.table-name {
+  text-align: left;
+}
+
+.column-list {
+  list-style: none;
+  padding: 0.2rem 0 0.4rem;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.column-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+
+.column-name {
+  color: var(--ink);
+}
+
+.column-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.key-badge {
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(208, 106, 69, 0.2);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .table-list .count {

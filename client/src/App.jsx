@@ -67,14 +67,29 @@ function App() {
       const res = await axios.get(`${API_BASE}/db/schema`);
       // server returns rows with table_name, column_name, data_type
       const rows = Array.isArray(res.data) ? res.data : [];
-      const tableCounts = rows.reduce((acc, row) => {
+      const tableMap = rows.reduce((acc, row) => {
         const name = typeof row === 'string' ? row : row.table_name;
         if (!name) return acc;
-        acc[name] = (acc[name] || 0) + (row.column_name ? 1 : 0);
+        if (!acc[name]) {
+          acc[name] = { name, columns: [] };
+        }
+        if (row.column_name) {
+          acc[name].columns.push({
+            name: row.column_name,
+            dataType: row.data_type || 'unknown',
+            isPrimary: !!row.is_primary,
+            isForeign: !!row.is_foreign,
+            foreignTable: row.foreign_table || null,
+            foreignColumn: row.foreign_column || null,
+          });
+        }
         return acc;
       }, {});
-      const tables = Object.entries(tableCounts)
-        .map(([name, columnCount]) => ({ name, columnCount }))
+      const tables = Object.values(tableMap)
+        .map((table) => ({
+          ...table,
+          columnCount: table.columns.length,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name));
       setSchema(tables);
       return tables;

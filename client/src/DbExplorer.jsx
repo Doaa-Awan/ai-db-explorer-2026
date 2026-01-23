@@ -2,6 +2,15 @@ import { useState } from 'react';
 
 export default function DbExplorer({ tables = [], onBack }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedTables, setExpandedTables] = useState({});
+
+  const toggleTable = (event, tableName) => {
+    event.stopPropagation();
+    setExpandedTables((prev) => ({
+      ...prev,
+      [tableName]: !prev[tableName],
+    }));
+  };
 
   return (
     <div className="db-explorer-shell">
@@ -63,18 +72,39 @@ export default function DbExplorer({ tables = [], onBack }) {
               <p className="sidebar-meta">{tables.length} total</p>
             </div>
           </div>
-          <div
-            className="table-list"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className="table-list">
             {tables.length === 0 ? (
               <p className="empty-state">No tables found.</p>
             ) : (
               <ul>
                 {tables.map((table) => (
-                  <li key={table.name}>
-                    <span>{table.name}</span>
-                    <span className="count">{table.columnCount} cols</span>
+                  <li key={table.name} className="table-item">
+                    <button
+                      className="table-row"
+                      type="button"
+                      onClick={(event) => toggleTable(event, table.name)}
+                    >
+                      <span className="table-name">{table.name}</span>
+                      <span className="count">{table.columnCount} cols</span>
+                    </button>
+                    {expandedTables[table.name] && table.columns?.length ? (
+                      <ul className="column-list">
+                        {table.columns.map((column) => (
+                          <li key={`${table.name}.${column.name}`}>
+                            <span className="column-name">{column.name}</span>
+                            <span className="column-meta">
+                              {column.dataType}
+                              {column.isPrimary ? <span className="key-badge">PK</span> : null}
+                              {column.isForeign ? (
+                                <span className="key-badge">
+                                  FK{column.foreignTable ? ` → ${column.foreignTable}` : ''}
+                                </span>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
               </ul>
