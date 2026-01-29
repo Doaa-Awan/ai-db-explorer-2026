@@ -1,20 +1,7 @@
 // server/db/postgres.js
-import { Pool } from 'pg';
-
-function createPostgresClient(config) {
-  return new Pool({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
-    ssl: config.ssl ?? false,
-  });
-}
-
 async function getSchema(pool) {
-  if (!pool || typeof pool.query !== "function") {
-    throw new Error("DB pool not available");
+  if (!pool || typeof pool.query !== 'function') {
+    throw new Error('DB pool not available');
   }
 
   const res = await pool.query(`
@@ -44,8 +31,8 @@ async function getSchema(pool) {
 }
 
 async function getSampleRows(pool, table) {
-  if (!pool || typeof pool.query !== "function") {
-    throw new Error("DB pool not available");
+  if (!pool || typeof pool.query !== 'function') {
+    throw new Error('DB pool not available');
   }
 
   const { rows: tables } = await pool.query(`
@@ -54,14 +41,14 @@ async function getSampleRows(pool, table) {
     WHERE table_schema = 'public';
   `);
 
-  const allowedTables = tables.map(t => t.table_name);
+  const allowedTables = tables.map((t) => t.table_name);
 
   if (!allowedTables.includes(table)) {
-    throw new Error("Invalid table name");
+    throw new Error('Invalid table name');
   }
 
   const res = await pool.query(`SELECT * FROM ${table} LIMIT 10`);
   return res.rows;
 }
 
-export { createPostgresClient, getSchema, getSampleRows };
+export { getSchema, getSampleRows };

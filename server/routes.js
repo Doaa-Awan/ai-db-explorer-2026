@@ -1,7 +1,8 @@
 //route definitions
 
 import express from 'express';
-import { chatController } from '../controllers/chat.controller.js';
+import { chatController } from './controllers/chat.controller.js';
+import { postgresController } from './controllers/postgres.controller.js';
 
 const router = express.Router();
 
@@ -10,5 +11,11 @@ router.get('/api', (req, res) => {
 });
 
 router.post('/api/chat', chatController.sendMessage);
+
+router.post('/db/connect-demo', postgresController.connectDemo);
+router.post('/db/connect', postgresController.connect);
+router.get('/db/status', postgresController.getStatus);
+router.get('/health/db', postgresController.getHealth);
+router.get('/db/schema', postgresController.getSchema);
 
 export default router;

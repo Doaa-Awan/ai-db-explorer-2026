@@ -1,7 +1,7 @@
 //gateway
 // controller for chat-related endpoints
 
-import { chatService } from '../services/chat.service';
+import { chatService } from '../services/chat.service.js';
 import z from 'zod';
 
 // Implementation detail
