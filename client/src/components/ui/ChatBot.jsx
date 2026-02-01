@@ -8,17 +8,20 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const ChatBot = () => {
   const [messages, setMessages] = useState([]);
+  const [isBotTyping, setIsBotTyping] = useState(false);
   const conversationId = useRef(crypto.randomUUID());
   const { register, handleSubmit, reset, formState } = useForm();
 
   const onSubmit = async ({ prompt }) => {
     setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
+    setIsBotTyping(true);
     reset();
     const { data } = await axios.post(`${API_BASE}/api/chat`, {
       prompt,
       conversationId: conversationId.current,
     });
     setMessages((prev) => [...prev, { role: 'bot', content: data.message }]);
+    setIsBotTyping(false);
   };
 
   const onKeyDown = (e) => {
@@ -47,6 +50,13 @@ const ChatBot = () => {
               <ReactMarkdown>{message.content}</ReactMarkdown>
             </p>
           ))}
+          {isBotTyping && (
+            <div className='bot-typing'>
+              <div className='bot-typing-dot'></div>
+              <div className='bot-typing-dot' style={{ animationDelay: '0.2s' }}></div>
+              <div className='bot-typing-dot' style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          )}
         </div>
         <form
           className='chat-input'
