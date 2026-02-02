@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useForm } from 'react-hook-form';
 import { FaArrowUp } from 'react-icons/fa';
@@ -9,8 +9,13 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const ChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const formRef = useRef(null)
   const conversationId = useRef(crypto.randomUUID());
   const { register, handleSubmit, reset, formState } = useForm();
+
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const onSubmit = async ({ prompt }) => {
     setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
@@ -59,9 +64,10 @@ const ChatBot = () => {
           )}
         </div>
         <form
-          className='chat-input'
           onSubmit={handleSubmit(onSubmit)}
           onKeyDown={onKeyDown}
+          ref={formRef}
+          className='chat-input'
         >
           <textarea
             {...register('prompt', {
