@@ -9,7 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const ChatBot = () => {
   const [messages, setMessages] = useState([]);
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const formRef = useRef(null)
+  const formRef = useRef(null);
   const conversationId = useRef(crypto.randomUUID());
   const { register, handleSubmit, reset, formState } = useForm();
 
@@ -36,6 +36,14 @@ const ChatBot = () => {
     }
   };
 
+  const onCopyMessage = (e) => {
+    const selection = window.getSelection()?.toString().trim();
+    if (selection) {
+      e.preventDefault();
+      e.clipboardData.setData('text/plain', selection);
+    }
+  };
+
   return (
     <div className='chat-window'>
       <div className='chat-header'>
@@ -50,6 +58,7 @@ const ChatBot = () => {
           {messages.map((message, index) => (
             <p
               key={index}
+              onCopy={onCopyMessage}
               className={`chat-message ${message.role === 'user' ? 'user-message' : 'bot-message'}`}
             >
               <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -58,8 +67,14 @@ const ChatBot = () => {
           {isBotTyping && (
             <div className='bot-typing'>
               <div className='bot-typing-dot'></div>
-              <div className='bot-typing-dot' style={{ animationDelay: '0.2s' }}></div>
-              <div className='bot-typing-dot' style={{ animationDelay: '0.4s' }}></div>
+              <div
+                className='bot-typing-dot'
+                style={{ animationDelay: '0.2s' }}
+              ></div>
+              <div
+                className='bot-typing-dot'
+                style={{ animationDelay: '0.4s' }}
+              ></div>
             </div>
           )}
         </div>
