@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ChatBot from './components/ui/ChatBot';
+import ChatBot from './components/chat/ChatBot';
 
 export default function DbExplorer({ tables = [], onBack }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -20,7 +20,11 @@ export default function DbExplorer({ tables = [], onBack }) {
           <p className='eyebrow'>AI DB Explorer</p>
           <h2>Ask the database</h2>
           <p className='subtitle'>Use plain language to explore tables, rows, and relationships.</p>
-          <button className='btn ghost chat-back' type='button' onClick={onBack}>
+          <button
+            className='btn ghost chat-back'
+            type='button'
+            onClick={onBack}
+          >
             Back
           </button>
         </div>
@@ -31,7 +35,10 @@ export default function DbExplorer({ tables = [], onBack }) {
           <ChatBot />
         </section>
 
-        <aside className={`db-sidebar ${isCollapsed ? 'collapsed' : ''}`} onClick={() => setIsCollapsed((prev) => !prev)}>
+        <aside
+          className={`db-sidebar ${isCollapsed ? 'collapsed' : ''}`}
+          onClick={() => setIsCollapsed((prev) => !prev)}
+        >
           <button
             className='sidebar-toggle'
             type='button'
@@ -40,7 +47,8 @@ export default function DbExplorer({ tables = [], onBack }) {
               setIsCollapsed((prev) => !prev);
             }}
             aria-expanded={!isCollapsed}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
             {isCollapsed ? '>' : '<'}
           </button>
           <div className='sidebar-header'>
@@ -55,8 +63,15 @@ export default function DbExplorer({ tables = [], onBack }) {
             ) : (
               <ul>
                 {tables.map((table) => (
-                  <li key={table.name} className='table-item'>
-                    <button className='table-row' type='button' onClick={(event) => toggleTable(event, table.name)}>
+                  <li
+                    key={table.name}
+                    className='table-item'
+                  >
+                    <button
+                      className='table-row'
+                      type='button'
+                      onClick={(event) => toggleTable(event, table.name)}
+                    >
                       <span className='table-name'>{table.name}</span>
                       <span className='count'>{table.columnCount} cols</span>
                     </button>
