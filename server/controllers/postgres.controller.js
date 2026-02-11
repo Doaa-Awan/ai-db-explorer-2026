@@ -63,4 +63,22 @@ export const postgresController = {
 
     res.status(result.status || 500).json(result.body);
   },
+  async buildExplorerSnapshot(req, res) {
+    const result = await postgresService.buildExplorerSnapshot();
+    if (result.ok) {
+      res.json(result.body);
+      return;
+    }
+
+    res.status(result.status || 500).json(result.body);
+  },
+  async clearExplorerSnapshot(req, res) {
+    const result = await postgresService.clearExplorerSnapshot();
+    if (result.ok) {
+      res.json(result.body);
+      return;
+    }
+
+    res.status(result.status || 500).json(result.body);
+  },
 };

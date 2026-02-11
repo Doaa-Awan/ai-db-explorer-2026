@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import ChatBot from './components/chat/ChatBot';
 
-export default function DbExplorer({ tables = [], onBack }) {
+export default function DbExplorer({ tables = [], onBack, onExit }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedTables, setExpandedTables] = useState({});
+
+  const handleBack = () => {
+    if (typeof onExit === 'function') {
+      void onExit();
+    }
+    if (typeof onBack === 'function') {
+      onBack();
+    }
+  };
 
   const toggleTable = (event, tableName) => {
     event.stopPropagation();
@@ -23,7 +32,7 @@ export default function DbExplorer({ tables = [], onBack }) {
           <button
             className='btn ghost chat-back'
             type='button'
-            onClick={onBack}
+            onClick={handleBack}
           >
             Back
           </button>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import TypingIndicator from './TypingIndicator';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';

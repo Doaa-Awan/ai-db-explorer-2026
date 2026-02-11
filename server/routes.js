@@ -17,5 +17,7 @@ router.post('/db/connect', postgresController.connect);
 router.get('/db/status', postgresController.getStatus);
 router.get('/health/db', postgresController.getHealth);
 router.get('/db/schema', postgresController.getSchema);
+router.post('/db/explorer-context/snapshot', postgresController.buildExplorerSnapshot);
+router.post('/db/explorer-context/clear', postgresController.clearExplorerSnapshot);
 
 export default router;

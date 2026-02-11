@@ -1,8 +1,15 @@
 // application logic
 
 import { Pool } from 'pg';
-import { getSchema as fetchSchema } from '../db/postgres.js';
+import { getSchema as fetchSchema, getSampleRows, getTables } from '../db/postgres.js';
 import { postgresRepository } from '../repositories/postgres.repository.js';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const explorerPromptPath = path.resolve(__dirname, '../prompts/db-explorer-context.md');
 
 function isMissingRequiredConfig(config) {
   return !config || !config.host || !config.user || !config.database;
@@ -44,6 +51,123 @@ async function testAndSetDb(config) {
     }
     return { ok: false, error: err.message };
   }
+}
+
+function formatScalar(value) {
+  if (value === null || value === undefined) return '`null`';
+  if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'bigint') return `\`${String(value)}\``;
+  if (value instanceof Date) return `\`${value.toISOString()}\``;
+  return `\`${String(value).replace(/\|/g, '\\|').replace(/\n/g, ' ')}\``;
+}
+
+function buildSnapshotMarkdown({ generatedAt, tables, schemaRows, tableSamples }) {
+  const groupedColumns = schemaRows.reduce((acc, row) => {
+    if (!acc[row.table_name]) {
+      acc[row.table_name] = [];
+    }
+    acc[row.table_name].push(row);
+    return acc;
+  }, {});
+
+  const relationshipRows = schemaRows
+    .filter((row) => row.is_foreign)
+    .map((row) => `${row.table_name}.${row.column_name} -> ${row.foreign_table}.${row.foreign_column}`);
+
+  const uniqueRelationships = [...new Set(relationshipRows)].sort((a, b) => a.localeCompare(b));
+
+  const lines = [
+    '# Database Explorer Context',
+    '',
+    `Generated: ${generatedAt.toISOString()}`,
+    '',
+    '## Tables',
+    '',
+  ];
+
+  if (tables.length === 0) {
+    lines.push('No tables found in `public` schema.');
+  } else {
+    for (const tableName of tables) {
+      lines.push(`- ${tableName}`);
+    }
+  }
+
+  lines.push('', '## Relationships', '');
+
+  if (uniqueRelationships.length === 0) {
+    lines.push('No foreign key relationships found.');
+  } else {
+    for (const relation of uniqueRelationships) {
+      lines.push(`- ${relation}`);
+    }
+  }
+
+  lines.push('', '## Table Details', '');
+
+  for (const tableName of tables) {
+    const columns = groupedColumns[tableName] || [];
+    const sampleRows = tableSamples[tableName] || [];
+
+    lines.push(`### ${tableName}`, '', 'Columns:', '');
+    if (columns.length === 0) {
+      lines.push('- No columns found.');
+    } else {
+      lines.push('| Name | Type | Keys | References |');
+      lines.push('|---|---|---|---|');
+      for (const column of columns) {
+        const keys = [column.is_primary ? 'PK' : '', column.is_foreign ? 'FK' : ''].filter(Boolean).join(', ') || '-';
+        const ref =
+          column.is_foreign && column.foreign_table && column.foreign_column
+            ? `${column.foreign_table}.${column.foreign_column}`
+            : '-';
+        lines.push(`| ${column.column_name} | ${column.data_type} | ${keys} | ${ref} |`);
+      }
+    }
+
+    lines.push('', 'Top 10 records:', '');
+    if (sampleRows.length === 0) {
+      lines.push('_No rows found._');
+      lines.push('');
+      continue;
+    }
+
+    const headerColumns = Object.keys(sampleRows[0]);
+    lines.push(`| ${headerColumns.join(' | ')} |`);
+    lines.push(`| ${headerColumns.map(() => '---').join(' | ')} |`);
+    for (const row of sampleRows) {
+      const values = headerColumns.map((col) => formatScalar(row[col]));
+      lines.push(`| ${values.join(' | ')} |`);
+    }
+    lines.push('');
+  }
+
+  lines.push('', '_This file is auto-generated and cleared when DB Explorer is exited._', '');
+  return lines.join('\n');
+}
+
+async function writeExplorerSnapshot(pool) {
+  const schemaRows = await fetchSchema(pool);
+  const tables = await getTables(pool);
+  const tableSamples = {};
+
+  for (const tableName of tables) {
+    tableSamples[tableName] = await getSampleRows(pool, tableName);
+  }
+
+  const markdown = buildSnapshotMarkdown({
+    generatedAt: new Date(),
+    tables,
+    schemaRows,
+    tableSamples,
+  });
+
+  await fs.mkdir(path.dirname(explorerPromptPath), { recursive: true });
+  await fs.writeFile(explorerPromptPath, markdown, 'utf8');
+}
+
+async function clearExplorerSnapshotFile() {
+  await fs.mkdir(path.dirname(explorerPromptPath), { recursive: true });
+  await fs.writeFile(explorerPromptPath, '', 'utf8');
 }
 
 // Public interface
@@ -106,6 +230,27 @@ export const postgresService = {
     try {
       const schema = await fetchSchema(pool);
       return { ok: true, body: schema };
+    } catch (err) {
+      return { ok: false, status: 500, body: { error: err.message } };
+    }
+  },
+  async buildExplorerSnapshot() {
+    const pool = postgresRepository.getPool();
+    if (!pool || !postgresRepository.isAvailable()) {
+      return { ok: false, status: 503, body: { error: 'DB connection not available' } };
+    }
+
+    try {
+      await writeExplorerSnapshot(pool);
+      return { ok: true, body: { message: 'DB explorer context generated', path: 'server/prompts/db-explorer-context.md' } };
+    } catch (err) {
+      return { ok: false, status: 500, body: { error: err.message } };
+    }
+  },
+  async clearExplorerSnapshot() {
+    try {
+      await clearExplorerSnapshotFile();
+      return { ok: true, body: { message: 'DB explorer context cleared', path: 'server/prompts/db-explorer-context.md' } };
     } catch (err) {
       return { ok: false, status: 500, body: { error: err.message } };
     }

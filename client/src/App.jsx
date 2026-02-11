@@ -17,8 +17,6 @@ function App() {
   const [schema, setSchema] = useState([]);
   const [activeDb, setActiveDb] = useState('postgres');
 
-
-
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const fetchData = async () => {
@@ -26,7 +24,7 @@ function App() {
       const response = await axios.get(`${API_BASE}/api`);
       setData(response.data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching data:', error);
       setData({ message: 'Server unavailable' });
     }
   };
@@ -37,35 +35,15 @@ function App() {
       const available = !!res.data.available;
       setDbStatus(available ? 'available' : 'unavailable');
       return available;
-    } catch (err) {
+    } catch {
       setDbStatus('unavailable');
       return false;
     }
   };
 
-  //connect to user db
-  const connect = async () => {
-    setStatusMessage('Connecting...');
-    try {
-      const res = await axios.post(`${API_BASE}/db/connect`, { host, port, user, password, database });
-      setStatusMessage(res.data.message || 'Connected');
-      const available = await checkDbStatus();
-      if (available) {
-        await fetchSchema();
-        setShowExplorer(true);
-      }
-    } catch (err) {
-      const error = err.response?.data;
-      setStatusMessage((error?.error ? `${error.error}${error.details ? `: ${error.details}` : ''}` : 'Failed to connect'));
-      await checkDbStatus();
-    }
-  };
-
-  // load schema (table names + column counts)
   const fetchSchema = async () => {
     try {
       const res = await axios.get(`${API_BASE}/db/schema`);
-      // server returns rows with table_name, column_name, data_type
       const rows = Array.isArray(res.data) ? res.data : [];
       const tableMap = rows.reduce((acc, row) => {
         const name = typeof row === 'string' ? row : row.table_name;
@@ -85,12 +63,14 @@ function App() {
         }
         return acc;
       }, {});
+
       const tables = Object.values(tableMap)
         .map((table) => ({
           ...table,
           columnCount: table.columns.length,
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
+
       setSchema(tables);
       return tables;
     } catch (err) {
@@ -100,7 +80,40 @@ function App() {
     }
   };
 
-  //connect to demo db
+  const generateExplorerContext = async () => {
+    try {
+      await axios.post(`${API_BASE}/db/explorer-context/snapshot`);
+    } catch (err) {
+      console.error('Failed to generate DB explorer context', err);
+    }
+  };
+
+  const clearExplorerContext = async () => {
+    try {
+      await axios.post(`${API_BASE}/db/explorer-context/clear`);
+    } catch (err) {
+      console.error('Failed to clear DB explorer context', err);
+    }
+  };
+
+  const connect = async () => {
+    setStatusMessage('Connecting...');
+    try {
+      const res = await axios.post(`${API_BASE}/db/connect`, { host, port, user, password, database });
+      setStatusMessage(res.data.message || 'Connected');
+      const available = await checkDbStatus();
+      if (available) {
+        await fetchSchema();
+        await generateExplorerContext();
+        setShowExplorer(true);
+      }
+    } catch (err) {
+      const error = err.response?.data;
+      setStatusMessage(error?.error ? `${error.error}${error.details ? `: ${error.details}` : ''}` : 'Failed to connect');
+      await checkDbStatus();
+    }
+  };
+
   const connectDemo = async () => {
     setStatusMessage('Connecting to demo DB...');
     try {
@@ -109,11 +122,12 @@ function App() {
       const available = await checkDbStatus();
       if (available) {
         await fetchSchema();
+        await generateExplorerContext();
         setShowExplorer(true);
       }
     } catch (err) {
       const error = err.response?.data;
-      setStatusMessage((error?.error ? `${error.error}${error.details ? `: ${error.details}` : ''}` : 'Failed to connect to demo DB'));
+      setStatusMessage(error?.error ? `${error.error}${error.details ? `: ${error.details}` : ''}` : 'Failed to connect to demo DB');
       await checkDbStatus();
     }
   };
@@ -124,13 +138,20 @@ function App() {
       const available = await checkDbStatus();
       if (available) {
         await fetchSchema();
+        await generateExplorerContext();
         setShowExplorer(true);
       }
     })();
   }, []);
 
   if (showExplorer) {
-    return <DbExplorer tables={schema} onBack={() => setShowExplorer(false)} />;
+    return (
+      <DbExplorer
+        tables={schema}
+        onBack={() => setShowExplorer(false)}
+        onExit={clearExplorerContext}
+      />
+    );
   }
 
   return (
@@ -177,17 +198,17 @@ function App() {
                 <input
                   id="pg-host"
                   value={host}
-                  onChange={e => setHost(e.target.value)}
+                  onChange={(e) => setHost(e.target.value)}
                   placeholder="localhost"
                 />
               </div>
               <div className="field">
                 <label htmlFor="pg-port">Port</label>
-                <input id="pg-port" value={port} onChange={e => setPort(e.target.value)} />
+                <input id="pg-port" value={port} onChange={(e) => setPort(e.target.value)} />
               </div>
               <div className="field">
                 <label htmlFor="pg-user">User</label>
-                <input id="pg-user" value={user} onChange={e => setUser(e.target.value)} />
+                <input id="pg-user" value={user} onChange={(e) => setUser(e.target.value)} />
               </div>
               <div className="field">
                 <label htmlFor="pg-password">Password</label>
@@ -195,12 +216,12 @@ function App() {
                   id="pg-password"
                   type="password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
               <div className="field field-full">
                 <label htmlFor="pg-database">Database</label>
-                <input id="pg-database" value={database} onChange={e => setDatabase(e.target.value)} />
+                <input id="pg-database" value={database} onChange={(e) => setDatabase(e.target.value)} />
               </div>
             </div>
 
@@ -230,7 +251,7 @@ function App() {
               </div>
               <div className="field">
                 <label htmlFor="ms-password">Password</label>
-                <input id="ms-password" type="password" placeholder="••••••••" disabled />
+                <input id="ms-password" type="password" placeholder="********" disabled />
               </div>
               <div className="field">
                 <label htmlFor="ms-database">Database</label>
