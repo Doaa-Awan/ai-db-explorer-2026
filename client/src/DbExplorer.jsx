@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import ChatBot from './components/chat/ChatBot';
+import ERDModal from './components/ERDModal';
+import { HiOutlineSquares2X2 } from 'react-icons/hi2';
 
 export default function DbExplorer({ tables = [], onBack, onExit }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedTables, setExpandedTables] = useState({});
+  const [erdOpen, setErdOpen] = useState(false);
 
   const handleBack = () => {
     if (typeof onExit === 'function') {
@@ -29,15 +32,30 @@ export default function DbExplorer({ tables = [], onBack, onExit }) {
           <p className='eyebrow'>AI DB Explorer</p>
           <h2>Ask the database</h2>
           <p className='subtitle'>Use plain language to explore tables, rows, and relationships.</p>
-          <button
-            className='btn ghost chat-back'
-            type='button'
-            onClick={handleBack}
-          >
-            Back
-          </button>
+          <div className="db-explorer-header-actions">
+            <button
+              className="btn ghost erd-trigger"
+              type="button"
+              onClick={() => setErdOpen(true)}
+              title="View entity relationship diagram"
+            >
+              <HiOutlineSquares2X2 />
+              <span>View ERD</span>
+            </button>
+            <button
+              className='btn ghost chat-back'
+              type='button'
+              onClick={handleBack}
+            >
+              Back
+            </button>
+          </div>
         </div>
       </header>
+
+      {erdOpen && (
+        <ERDModal tables={tables} onClose={() => setErdOpen(false)} />
+      )}
 
       <div className={`db-explorer-body ${isCollapsed ? 'collapsed' : ''}`}>
         <section className='db-main'>
