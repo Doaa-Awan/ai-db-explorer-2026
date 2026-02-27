@@ -1,16 +1,23 @@
-//data access code
-//Data repository for managing conversation states
+// data access code
+// Data repository for managing conversation message history
 
-// Implementation detail
-const conversations = new Map(); //conversationId -> lastResponse
+// conversationId -> [{ role: 'user' | 'assistant', content: string }]
+const conversations = new Map();
 
-// Exported repository functions
-export const conversationRepository = {
-  getLastResponse(conversationId) {
-    return conversations.get(conversationId);
-  },
-  setLastResponse(conversationId, response) {
-  //store response object for conversation continuity
-  conversations.set(conversationId, response);
+function getHistory(conversationId) {
+  if (!conversations.has(conversationId)) {
+    conversations.set(conversationId, []);
+  }
+  return conversations.get(conversationId);
 }
+
+export const conversationRepository = {
+  getRecentMessages(conversationId, limit = 10) {
+    const history = getHistory(conversationId);
+    return history.slice(-limit);
+  },
+  appendMessage(conversationId, role, content) {
+    const history = getHistory(conversationId);
+    history.push({ role, content });
+  },
 };

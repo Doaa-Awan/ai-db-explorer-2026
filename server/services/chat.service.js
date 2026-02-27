@@ -30,26 +30,29 @@ export const chatService = {
   // Chat service methods would go here
   async sendMessage(prompt, conversationId) {
     const instructions = await buildInstructions();
+    const recentMessages = conversationRepository.getRecentMessages(conversationId, 10);
+    const messages = [
+      { role: 'system', content: instructions },
+      ...recentMessages,
+      { role: 'user', content: prompt },
+    ];
 
     // Implementation for sending a message
     const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
-      // instructions,
-      messages: [
-        { role: 'system', content: instructions },
-        { role: 'user', content: prompt },
-      ],
+      messages,
       temperature: 0.2,
       max_tokens: 200, //max_completion_tokens
-      previous_response: conversationRepository.getLastResponse(conversationId),
       //stream: true,
     });
 
-    conversationRepository.setLastResponse(conversationId, response);
+    const assistantMessage = response.choices?.[0]?.message?.content ?? '';
+    conversationRepository.appendMessage(conversationId, 'user', prompt);
+    conversationRepository.appendMessage(conversationId, 'assistant', assistantMessage);
 
     return {
       id: response.id,
-      message: response.choices[0].message.content,
+      message: assistantMessage,
     };
   },
 };
