@@ -9,10 +9,10 @@ async function getSchema(pool) {
       c.table_name,
       c.column_name,
       c.data_type,
-      tc.constraint_type = 'PRIMARY KEY' AS is_primary,
-      tc.constraint_type = 'FOREIGN KEY' AS is_foreign,
-      ccu.table_name AS foreign_table,
-      ccu.column_name AS foreign_column
+      BOOL_OR(tc.constraint_type = 'PRIMARY KEY') AS is_primary,
+      BOOL_OR(tc.constraint_type = 'FOREIGN KEY') AS is_foreign,
+      MAX(CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN ccu.table_name END) AS foreign_table,
+      MAX(CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN ccu.column_name END) AS foreign_column
     FROM information_schema.columns c
     LEFT JOIN information_schema.key_column_usage kcu
       ON c.table_name = kcu.table_name
@@ -25,6 +25,7 @@ async function getSchema(pool) {
       ON tc.constraint_name = ccu.constraint_name
       AND tc.table_schema = ccu.table_schema
     WHERE c.table_schema = 'public'
+    GROUP BY c.table_name, c.column_name, c.data_type, c.ordinal_position
     ORDER BY c.table_name, c.ordinal_position;
   `);
   return res.rows;
