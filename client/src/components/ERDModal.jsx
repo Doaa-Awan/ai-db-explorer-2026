@@ -1,24 +1,61 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { HiXMark, HiMagnifyingGlassPlus, HiMagnifyingGlassMinus, HiArrowsPointingOut } from 'react-icons/hi2';
 
-const CELL_WIDTH = 220;
-const CELL_HEIGHT = 200;
-const PADDING = 40;
+const CELL_WIDTH = 240;
+const CELL_HEIGHT = 280;
+const STEP_X = 280;  // 40px horizontal gap between cards
+const STEP_Y = 340;  // 60px vertical gap — room for orthogonal routing segments
+const PADDING = 60;
 
 function computeLayout(tables) {
   if (!tables?.length) return { positions: new Map(), width: 0, height: 0 };
-  const cols = Math.ceil(Math.sqrt(tables.length));
-  const positions = new Map();
-  tables.forEach((table, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    positions.set(table.name, { x: PADDING + col * CELL_WIDTH, y: PADDING + row * CELL_HEIGHT });
+
+  // Build undirected adjacency from FK relationships
+  const adj = new Map();
+  tables.forEach(t => adj.set(t.name, new Set()));
+  tables.forEach(table => {
+    table.columns?.forEach(col => {
+      if (col.isForeign && col.foreignTable && adj.has(col.foreignTable)) {
+        adj.get(table.name).add(col.foreignTable);
+        adj.get(col.foreignTable).add(table.name);
+      }
+    });
   });
-  const last = tables.length - 1;
-  const lastCol = last % cols;
-  const lastRow = Math.floor(last / cols);
-  const width = PADDING * 2 + (lastCol + 1) * CELL_WIDTH;
-  const height = PADDING * 2 + (lastRow + 1) * CELL_HEIGHT;
+
+  const degree = name => adj.get(name)?.size ?? 0;
+
+  // BFS from the most-connected table so related tables land in adjacent grid cells
+  const sorted = [...tables].sort((a, b) => degree(b.name) - degree(a.name));
+  const visited = new Set();
+  const order = [];
+
+  const bfs = start => {
+    const queue = [start];
+    visited.add(start);
+    while (queue.length) {
+      const name = queue.shift();
+      order.push(name);
+      [...(adj.get(name) ?? [])]
+        .filter(n => !visited.has(n))
+        .sort((a, b) => degree(b) - degree(a))
+        .forEach(n => { visited.add(n); queue.push(n); });
+    }
+  };
+
+  sorted.forEach(t => { if (!visited.has(t.name)) bfs(t.name); });
+
+  const COLS = Math.ceil(Math.sqrt(tables.length));
+  const positions = new Map();
+  order.forEach((name, i) => {
+    positions.set(name, {
+      x: PADDING + (i % COLS) * STEP_X,
+      y: PADDING + Math.floor(i / COLS) * STEP_Y,
+    });
+  });
+
+  const last = order.length - 1;
+  const width = PADDING * 2 + (last % COLS) * STEP_X + CELL_WIDTH;
+  const height = PADDING * 2 + Math.floor(last / COLS) * STEP_Y + CELL_HEIGHT;
   return { positions, width, height };
 }
 
@@ -131,10 +168,37 @@ export default function ERDModal({ tables = [], onClose }) {
     return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
-  const linePath = (from, to) => {
-    const cx = (from.x + to.x) / 2;
-    const mid = from.y < to.y ? { x: cx, y: from.y + 40 } : { x: cx, y: to.y + 40 };
-    return `M ${from.x} ${from.y} C ${mid.x} ${mid.y}, ${mid.x} ${mid.y}, ${to.x} ${to.y}`;
+  // Choose which card edges to connect based on relative table position,
+  // then build a cubic Bézier with outward control points for a clear S-curve.
+  const getEdgePoints = (fromPos, toPos) => {
+    const fCX = fromPos.x + CELL_WIDTH / 2;
+    const fCY = fromPos.y + CELL_HEIGHT / 2;
+    const tCX = toPos.x + CELL_WIDTH / 2;
+    const tCY = toPos.y + CELL_HEIGHT / 2;
+    const dx = tCX - fCX;
+    const dy = tCY - fCY;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // Tables are more side-by-side → use left/right edges
+      return dx > 0
+        ? { from: { x: fromPos.x + CELL_WIDTH - 8, y: fCY }, to: { x: toPos.x + 8, y: tCY }, horizontal: true }
+        : { from: { x: fromPos.x + 8, y: fCY }, to: { x: toPos.x + CELL_WIDTH - 8, y: tCY }, horizontal: true };
+    } else {
+      // Tables are more above/below → use top/bottom edges
+      return dy > 0
+        ? { from: { x: fCX, y: fromPos.y + CELL_HEIGHT - 8 }, to: { x: tCX, y: toPos.y + 8 }, horizontal: false }
+        : { from: { x: fCX, y: fromPos.y + 8 }, to: { x: tCX, y: toPos.y + CELL_HEIGHT - 8 }, horizontal: false };
+    }
+  };
+
+  const linePath = (from, to, horizontal) => {
+    if (horizontal) {
+      const midX = (from.x + to.x) / 2;
+      return `M ${from.x} ${from.y} H ${midX} V ${to.y} H ${to.x}`;
+    } else {
+      const midY = (from.y + to.y) / 2;
+      return `M ${from.x} ${from.y} V ${midY} H ${to.x} V ${to.y}`;
+    }
   };
 
   return (
@@ -246,18 +310,11 @@ export default function ERDModal({ tables = [], onClose }) {
                   const fromPos = positions.get(rel.fromTable);
                   const toPos = positions.get(rel.toTable);
                   if (!fromPos || !toPos) return null;
-                  const from = {
-                    x: fromPos.x + CELL_WIDTH / 2,
-                    y: fromPos.y + CELL_HEIGHT,
-                  };
-                  const to = {
-                    x: toPos.x + CELL_WIDTH / 2,
-                    y: toPos.y,
-                  };
+                  const { from, to, horizontal } = getEdgePoints(fromPos, toPos);
                   return (
                     <g key={`${rel.fromTable}-${rel.fromColumn}-${rel.toTable}-${i}`}>
                       <path
-                        d={linePath(from, to)}
+                        d={linePath(from, to, horizontal)}
                         fill="none"
                         stroke="var(--accent)"
                         strokeWidth="1.5"
